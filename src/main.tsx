@@ -8,3 +8,13 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 );
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').then(registration => {
+      console.log('JARVIS ServiceWorker registered: ', registration.scope);
+    }, err => {
+      console.log('JARVIS ServiceWorker registration failed: ', err);
+    });
+  });
+}
