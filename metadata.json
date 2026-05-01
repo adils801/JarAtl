@@ -1,0 +1,6 @@
+{
+  "name": "Atlas Intelligence System",
+  "description": "An advanced AI-driven home and system orchestration interface with voice commands, real-time analytics, and predictive insights.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["AI Intelligence", "Voice Control", "IoT Orchestration", "Predictive Analytics"]
+}
