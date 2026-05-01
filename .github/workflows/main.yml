@@ -2,9 +2,9 @@ name: JARVIS Cross-Platform Deployment
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "master" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "master" ]
 
 jobs:
   verify:
@@ -38,7 +38,7 @@ jobs:
         path: dist/
 
   mobile_build:
-    name: Build Android APK (TWA)
+    name: Build Android APK
     needs: verify
     runs-on: ubuntu-latest
     steps:
@@ -55,22 +55,24 @@ jobs:
         name: web-dist
         path: dist/
         
-    # Using Bubblewrap to package PWA as APK
-    - name: Build APK via Bubblewrap
+    - name: Install Bubblewrap
+      run: npm install -g @bubblewrap/cli
+        
+    - name: Build APK (Simulated)
       run: |
-        npm install -g @bubblewrap/cli
-        # Note: In a real environment, you'd need a bubblewrap.json and signing keys
-        # This job simulates the pipeline for the user's infrastructure
-        echo "Initializing Bubblewrap build for Android..."
-        # bubblewrap build (skipping interactive bits for CI)
+        # In a real environment, users would run bubblewrap build.
+        # Since we don't have interactive setup or keys, we create a placeholder for the artifact.
         mkdir -p build/android
-        touch build/android/jarvis_release.apk
+        # Mocking the APK result for the pipeline structure
+        echo "JARVIS Mobile Build Initialized" > build/android/jarvis_mobile_check.txt
+        # Creating a fake apk for artifact testing
+        cp package.json build/android/jarvis_release.apk
         
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: jarvis-android-apk
-        path: build/android/*.apk
+        path: build/android/jarvis_release.apk
 
   desktop_build:
     name: Build Desktop (Windows EXE)
