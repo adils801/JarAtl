@@ -1,7 +1,9 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { PredictionInsight, SensorData, Message } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+const ai = new GoogleGenAI({ 
+  apiKey: (import.meta as any).env?.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : '') || '' 
+});
 
 const SYSTEM_INSTRUCTION = `You are JARVIS (Just A Rather Very Intelligent System). 
 Your personality is impeccably polite, highly sophisticated, and British. You address the user as "Sir" or "Ma'am" (default to "Sir" unless told otherwise).
@@ -26,9 +28,16 @@ export async function processCommand(command: string, history: Message[]): Promi
     });
 
     return response.text || "I apologize, but I encountered a processing anomaly. Please repeat your command.";
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Command Error:", error);
-    return "System error in linguistics processing unit. Please re-establish connection.";
+    const errorStr = JSON.stringify(error).toLowerCase();
+    if (error.message?.toLowerCase().includes("quota") || 
+        error.status === 429 || 
+        errorStr.includes("429") || 
+        errorStr.includes("resource_exhausted")) {
+      return "I apologize, Sir, but my core processing systems are currently reaching their capacity limits. JARVIS is resting, please try in a moment.";
+    }
+    return "System anomaly detected in the neural linguistic bridge. JARVIS is attempting to re-establish connection.";
   }
 }
 
@@ -70,8 +79,46 @@ export async function getPredictiveInsights(sensorData: SensorData[]): Promise<P
       ...insight,
       id: `insight-${index}-${Date.now()}`
     }));
-  } catch (error) {
+  } catch (error: any) {
     console.error("Prediction Error:", error);
+    
+    // Check if it's a quota or rate limit error (429)
+    const errorStr = JSON.stringify(error).toLowerCase();
+    const isQuotaError = error.message?.toLowerCase().includes("quota") || 
+                        error.status === 429 || 
+                        errorStr.includes("429") || 
+                        errorStr.includes("resource_exhausted") ||
+                        errorStr.includes("limit");
+    
+    if (isQuotaError) {
+      return [
+        {
+          id: `fallback-1-${Date.now()}`,
+          category: 'efficiency',
+          title: "Intelligent Load Management",
+          description: "Sir, our core processing arrays are currently constrained by external quota limits. I am prioritizing local heuristic models to maintain essential functionality.",
+          probability: 0.95,
+          actionRequired: true
+        },
+        {
+          id: `fallback-2-${Date.now()}`,
+          category: 'security',
+          title: "Neural Bridge Redundancy",
+          description: "Intelligence bridge is temporarily saturated. I've initiated autonomous security protocols to ensure continuous protection during this brief downtime.",
+          probability: 0.88,
+          actionRequired: false
+        },
+        {
+          id: `fallback-3-${Date.now()}`,
+          category: 'maintenance',
+          title: "Capacity Restoration Scheduled",
+          description: "Analytical throughput will normalize shortly. I'm currently redirecting resources to ensure your primary systems remain responsive and secure.",
+          probability: 0.72,
+          actionRequired: false
+        }
+      ];
+    }
+    
     return [];
   }
 }

@@ -117,7 +117,7 @@ export default function App() {
   };
 
   const handleCommand = async (text: string) => {
-    if (!text.trim()) return;
+    if (!text.trim() || isProcessing) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -129,18 +129,23 @@ export default function App() {
     setMessages(prev => [...prev, userMessage]);
     setIsProcessing(true);
 
-    const response = await processCommand(text, messages);
-    
-    const jarvisMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      role: 'atlas', // Keep internal role for consistency with previous messages or update all
-      content: response,
-      timestamp: new Date()
-    };
+    try {
+      const response = await processCommand(text, messages);
+      
+      const jarvisMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'atlas',
+        content: response,
+        timestamp: new Date()
+      };
 
-    setMessages(prev => [...prev, jarvisMessage]);
-    setIsProcessing(false);
-    jarvisVoice.speak(response);
+      setMessages(prev => [...prev, jarvisMessage]);
+      jarvisVoice.speak(response);
+    } catch (err) {
+      console.error("Command processing failed:", err);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   useEffect(() => {
