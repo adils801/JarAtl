@@ -12,6 +12,7 @@ export interface SensorData {
   cpuLoad: number;
   memoryUsage: number;
   networkTraffic: number;
+  trafficSpeed?: number;
   energyConsumption: number;
   externalThreats: number;
 }

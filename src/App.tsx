@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Component, ErrorInfo, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Mic, 
@@ -48,46 +48,94 @@ export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isPerimeterActive, setIsPerimeterActive] = useState(false);
+  const [securityStatus, setSecurityStatus] = useState<'neutral' | 'scanning' | 'secure' | 'breach'>('neutral');
+
+  const runSecurityCheck = () => {
+    setSecurityStatus('scanning');
+    jarvisVoice.speak("Initiating local network security perimeter scan, Sir.");
+    
+    setTimeout(() => {
+      const threats = Math.random() > 0.9 ? 'breach' : 'secure';
+      setSecurityStatus(threats);
+      if (threats === 'secure') {
+        jarvisVoice.speak("Security scan complete. All local nodes are secure.");
+      } else {
+        jarvisVoice.speak("Warning, Sir. I have detected an anomaly in the local firewall. Recommended immediate isolation.");
+      }
+    }, 4000);
+  };
+
+  const toggleHomeLink = () => {
+    setIsPerimeterActive(!isPerimeterActive);
+    const msg = !isPerimeterActive ? "Home link established. Synchronizing with smart residence." : "Home link terminated.";
+    jarvisVoice.speak(msg);
+  };
   const [notifications, setNotifications] = useState<{id: string, text: string, type: 'info' | 'alert'}[]>([]);
   
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    // Initial greeting
+    const timer = setTimeout(() => {
+      jarvisVoice.speak("Welcome back, Sir. All systems are operational. I have initialized the neural linguistic bridge and am ready for your command.");
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Initialize sensors and run loops
   useEffect(() => {
-    const sensorInterval = setInterval(() => {
-      // Try to get real stats if in Electron
+    const updateSensors = async () => {
+      // Default base values (simulated)
       let cpu = Math.floor(Math.random() * 30) + 10;
       let mem = Math.floor(Math.random() * 20) + 40;
+      let traffic = Math.floor(Math.random() * 50) + 10;
       
       const electronAPI = (window as any).electronAPI;
       if (electronAPI) {
-        const stats = electronAPI.getSystemStats();
-        cpu = Math.min(100, Math.max(0, Math.round(stats.cpuUsage)));
-        mem = Math.min(100, Math.max(0, Math.round(stats.memoryUsage)));
+        try {
+          const stats = await electronAPI.getSystemStats();
+          if (stats) {
+            cpu = stats.cpuUsage;
+            mem = stats.memoryUsage;
+            traffic = stats.networkTraffic;
+          }
+        } catch (err) {
+          console.error("Failed to fetch Electron stats:", err);
+        }
       } else {
-        // Fallback to web APIs for memory if available
+        // Fallback to web APIs
         if ('deviceMemory' in navigator) {
-          const totalMem = (navigator as any).deviceMemory || 8;
-          // We can't get free memory, so we simulate a load
-          mem = 40 + Math.floor(Math.random() * 10);
+          // @ts-ignore
+          mem = (navigator.deviceMemory || 8) > 4 ? 35 : 65; // Simple heuristic
+        }
+        
+        // Use Network Information API if available
+        const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
+        if (connection) {
+          // connection.downlink gives speed in Mbps
+          traffic = connection.downlink || 10;
         }
       }
 
       const newData: SensorData = {
         timestamp: Date.now(),
-        cpuLoad: cpu,
-        memoryUsage: mem,
-        networkTraffic: Math.floor(Math.random() * 50) + 10,
+        cpuLoad: Math.min(100, Math.max(0, Math.round(cpu))),
+        memoryUsage: Math.min(100, Math.max(0, Math.round(mem))),
+        trafficSpeed: traffic, // Use a consistent field name or map it
+        networkTraffic: Math.round(traffic),
         energyConsumption: Math.floor(Math.random() * 10) + 2,
-        externalThreats: Math.random() > 0.95 ? 1 : 0
+        externalThreats: Math.random() > 0.98 ? 1 : 0
       };
       setSensorHistory(prev => [...prev.slice(-20), newData]);
 
       if (newData.externalThreats > 0) {
         addNotification("Intrusion attempt detected on Stark Mobile Link. Counter-measures active.", 'alert');
       }
-    }, 3000);
+    };
 
+    const sensorInterval = setInterval(updateSensors, 3000);
+    updateSensors();
     return () => clearInterval(sensorInterval);
   }, []);
 
@@ -158,9 +206,28 @@ export default function App() {
       };
 
       setMessages(prev => [...prev, jarvisMessage]);
+      
+      // Real-time Text-to-Speech
       jarvisVoice.speak(response);
+      
+      // Check for specific keywords to trigger dashboard actions
+      const lowerResponse = response.toLowerCase();
+      if (lowerResponse.includes("scanning") || lowerResponse.includes("security perimeter")) {
+        runSecurityCheck();
+      }
+      if (lowerResponse.includes("home link") && (lowerResponse.includes("establish") || lowerResponse.includes("connected"))) {
+        if (!isPerimeterActive) toggleHomeLink();
+      }
     } catch (err) {
       console.error("Command processing failed:", err);
+      const errorMsg = "I apologize, Sir. I'm having difficulty accessing my central intelligence matrix.";
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: 'atlas',
+        content: errorMsg,
+        timestamp: new Date()
+      }]);
+      jarvisVoice.speak(errorMsg);
     } finally {
       setIsProcessing(false);
     }
@@ -192,16 +259,34 @@ export default function App() {
             {devices.map(device => (
               <motion.div 
                 key={device.id}
-                whileHover={{ x: 4 }}
+                whileHover={{ x: 4, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 className={cn(
                   "p-3 rounded-lg border bg-white/5 flex items-center justify-between group cursor-pointer transition-all",
                   device.status === 'active' || device.status === 'on' || device.status === 'locked' 
-                    ? "border-white/10" 
-                    : "border-red-500/30 opacity-60"
+                    ? "border-cyan-500/20 bg-cyan-500/5 shadow-[0_0_10px_rgba(6,182,212,0.1)]" 
+                    : "border-white/10 opacity-60"
                 )}
+                onClick={() => {
+                  if (device.type === 'security') {
+                    runSecurityCheck();
+                  } else if (device.name.includes('Link')) {
+                    toggleHomeLink();
+                  } else {
+                    const nextStatus = device.status === 'on' ? 'off' : device.status === 'locked' ? 'unlocked' : 'active';
+                    setDevices(prev => prev.map(d => d.id === device.id ? { ...d, status: nextStatus as any } : d));
+                    jarvisVoice.speak(`${device.name} is now ${nextStatus}, Sir.`);
+                    addNotification(`${device.name} state changed to ${nextStatus}.`, 'info');
+                  }
+                }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded bg-black/40 text-white/60 group-hover:text-cyan-400 transition-colors">
+                  <div className={cn(
+                    "p-2 rounded bg-black/40 transition-colors",
+                    device.type === 'security' && securityStatus === 'scanning' ? "animate-pulse text-cyan-400" : 
+                    device.type === 'security' && securityStatus === 'breach' ? "text-red-400" :
+                    "text-white/60 group-hover:text-cyan-400"
+                  )}>
                     {device.type === 'light' && <Lightbulb size={16} />}
                     {device.type === 'thermostat' && <Thermometer size={16} />}
                     {device.type === 'security' && <Shield size={16} />}
@@ -209,16 +294,21 @@ export default function App() {
                     {device.type === 'power' && <Power size={16} />}
                   </div>
                   <div>
-                    <p className="font-mono text-xs font-medium tracking-tight">{device.name}</p>
+                    <p className="font-mono text-xs font-medium tracking-tight">
+                      {device.type === 'security' && securityStatus === 'scanning' ? "SCANNING..." : device.name}
+                    </p>
                     <p className="text-[9px] text-white/30 uppercase">{device.location}</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className={cn(
                     "text-[10px] font-mono",
+                    device.type === 'security' && securityStatus === 'breach' ? "text-red-400" :
                     device.status === 'active' || device.status === 'on' || device.status === 'locked' ? "text-cyan-400" : "text-red-400"
                   )}>
-                    {device.value || device.status.toUpperCase()}
+                    {device.type === 'security' && securityStatus === 'breach' ? "BREACH" : 
+                     device.type === 'security' && securityStatus === 'secure' ? "SECURE" :
+                     device.value || device.status.toUpperCase()}
                   </p>
                 </div>
               </motion.div>
@@ -237,11 +327,11 @@ export default function App() {
           <div className="grid grid-cols-2 gap-2">
             <div className="bg-white/5 p-2 rounded border border-white/10">
               <p className="text-[8px] text-white/30 uppercase italic">Uplink</p>
-              <p className="font-mono text-[10px]">842.1 Mbps</p>
+              <p className="font-mono text-[10px]">{(sensorHistory[sensorHistory.length-1]?.networkTraffic * 0.4 || 0).toFixed(1)} Mbps</p>
             </div>
             <div className="bg-white/5 p-2 rounded border border-white/10">
               <p className="text-[8px] text-white/30 uppercase italic">Downlink</p>
-              <p className="font-mono text-[10px]">1.2 Gbps</p>
+              <p className="font-mono text-[10px]">{(sensorHistory[sensorHistory.length-1]?.networkTraffic * 1.0 || 0).toFixed(1)} Mbps</p>
             </div>
           </div>
         </section>
