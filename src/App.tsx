@@ -55,13 +55,31 @@ export default function App() {
   // Initialize sensors and run loops
   useEffect(() => {
     const sensorInterval = setInterval(() => {
+      // Try to get real stats if in Electron
+      let cpu = Math.floor(Math.random() * 30) + 10;
+      let mem = Math.floor(Math.random() * 20) + 40;
+      
+      const electronAPI = (window as any).electronAPI;
+      if (electronAPI) {
+        const stats = electronAPI.getSystemStats();
+        cpu = Math.min(100, Math.max(0, Math.round(stats.cpuUsage)));
+        mem = Math.min(100, Math.max(0, Math.round(stats.memoryUsage)));
+      } else {
+        // Fallback to web APIs for memory if available
+        if ('deviceMemory' in navigator) {
+          const totalMem = (navigator as any).deviceMemory || 8;
+          // We can't get free memory, so we simulate a load
+          mem = 40 + Math.floor(Math.random() * 10);
+        }
+      }
+
       const newData: SensorData = {
         timestamp: Date.now(),
-        cpuLoad: Math.floor(Math.random() * 30) + 10,
-        memoryUsage: Math.floor(Math.random() * 20) + 40,
+        cpuLoad: cpu,
+        memoryUsage: mem,
         networkTraffic: Math.floor(Math.random() * 50) + 10,
         energyConsumption: Math.floor(Math.random() * 10) + 2,
-        externalThreats: Math.random() > 0.9 ? 1 : 0
+        externalThreats: Math.random() > 0.95 ? 1 : 0
       };
       setSensorHistory(prev => [...prev.slice(-20), newData]);
 

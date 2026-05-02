@@ -8,6 +8,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      preload: path.join(__dirname, 'preload.cjs')
     },
     title: "JARVIS Intelligence System",
     backgroundColor: '#050505',
