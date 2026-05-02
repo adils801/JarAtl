@@ -12,7 +12,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       return {
         cpuUsage: cpu.currentLoad,
         memoryUsage: (mem.active / mem.total) * 100,
-        networkTraffic: network[0]?.rx_sec / 1024 / 1024 || 0, // Mbps
+        networkTraffic: (network[0]?.rx_sec * 8) / 1024 / 1024 || 0, // Mbps (bits)
         diskUsage: fsSize[0]?.use || 0,
         platform: process.platform,
         uptime: await si.time().uptime

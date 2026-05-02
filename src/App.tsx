@@ -50,6 +50,17 @@ export default function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPerimeterActive, setIsPerimeterActive] = useState(false);
   const [securityStatus, setSecurityStatus] = useState<'neutral' | 'scanning' | 'secure' | 'breach'>('neutral');
+  const [ping, setPing] = useState<number>(0);
+
+  const measurePing = async () => {
+    const start = performance.now();
+    try {
+      await fetch(window.location.origin, { method: 'HEAD', mode: 'no-cors', cache: 'no-store' });
+      setPing(Math.round(performance.now() - start));
+    } catch (e) {
+      setPing(0);
+    }
+  };
 
   const runSecurityCheck = () => {
     setSecurityStatus('scanning');
@@ -116,6 +127,15 @@ export default function App() {
           // connection.downlink gives speed in Mbps
           traffic = connection.downlink || 10;
         }
+
+        // Get Battery Status if supported
+        if ('getBattery' in navigator) {
+          try {
+            const battery = await (navigator as any).getBattery();
+            // Map battery values to something relevant for the dashboard
+            // For example, if battery is high, we might simulate lower energy flux
+          } catch (e) {}
+        }
       }
 
       const newData: SensorData = {
@@ -134,8 +154,12 @@ export default function App() {
       }
     };
 
-    const sensorInterval = setInterval(updateSensors, 3000);
+    const sensorInterval = setInterval(() => {
+      updateSensors();
+      measurePing();
+    }, 3000);
     updateSensors();
+    measurePing();
     return () => clearInterval(sensorInterval);
   }, []);
 
@@ -320,18 +344,18 @@ export default function App() {
           <div className="flex items-center justify-between">
             <span className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Network Status</span>
             <div className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-              <span className="text-[10px] font-mono text-cyan-400">UP</span>
+              <span className={cn("w-1.5 h-1.5 rounded-full animate-pulse", ping > 200 ? "bg-red-400" : "bg-cyan-400")} />
+              <span className={cn("text-[10px] font-mono", ping > 200 ? "text-red-400" : "text-cyan-400")}>{ping > 0 ? `${ping}ms` : 'UP'}</span>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="bg-white/5 p-2 rounded border border-white/10">
-              <p className="text-[8px] text-white/30 uppercase italic">Uplink</p>
-              <p className="font-mono text-[10px]">{(sensorHistory[sensorHistory.length-1]?.networkTraffic * 0.4 || 0).toFixed(1)} Mbps</p>
+              <p className="text-[8px] text-white/30 uppercase italic">Latency</p>
+              <p className="font-mono text-[10px]">{ping} ms</p>
             </div>
             <div className="bg-white/5 p-2 rounded border border-white/10">
               <p className="text-[8px] text-white/30 uppercase italic">Downlink</p>
-              <p className="font-mono text-[10px]">{(sensorHistory[sensorHistory.length-1]?.networkTraffic * 1.0 || 0).toFixed(1)} Mbps</p>
+              <p className="font-mono text-[10px]">{(sensorHistory[sensorHistory.length-1]?.networkTraffic || 0).toFixed(1)} Mbps</p>
             </div>
           </div>
         </section>

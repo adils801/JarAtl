@@ -109,6 +109,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           VITE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          VITE_NODE_ENV: production
           
       - name: Upload Windows Desktop
         uses: actions/upload-artifact@v4
