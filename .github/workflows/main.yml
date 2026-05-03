@@ -9,6 +9,11 @@ jobs:
   build_web:
     name: Build & Verify Web
     runs-on: ubuntu-latest
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      VITE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      VITE_NODE_ENV: production
+      NODE_OPTIONS: "--max-old-space-size=4096"
     steps:
       - uses: actions/checkout@v4
       
@@ -25,10 +30,6 @@ jobs:
         run: |
           npm run lint
           npm run build
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          VITE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          VITE_NODE_ENV: production
 
       - name: Upload Web Artifact
         uses: actions/upload-artifact@v4
@@ -40,6 +41,9 @@ jobs:
     name: Build Android (MinSDK 21)
     needs: build_web
     runs-on: ubuntu-latest
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      VITE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       
@@ -85,6 +89,11 @@ jobs:
     name: Build Desktop (Windows)
     needs: build_web
     runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      VITE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      VITE_NODE_ENV: production
     steps:
       - uses: actions/checkout@v4
       
@@ -105,11 +114,6 @@ jobs:
           
       - name: Build Electron App
         run: npm run build:desktop
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          VITE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          VITE_NODE_ENV: production
           
       - name: Upload Windows Desktop
         uses: actions/upload-artifact@v4

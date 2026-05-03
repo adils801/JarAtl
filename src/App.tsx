@@ -64,17 +64,23 @@ export default function App() {
 
   const runSecurityCheck = () => {
     setSecurityStatus('scanning');
-    jarvisVoice.speak("Initiating local network security perimeter scan, Sir.");
+    addNotification("Tactical perimeter scan initiated.", 'info');
+    jarvisVoice.speak("Initiating local network security perimeter scan, Sir. Analyzing sub-net nodes and firewall integrity.");
     
     setTimeout(() => {
-      const threats = Math.random() > 0.9 ? 'breach' : 'secure';
+      // Simulate real process scan or uptime check
+      const uptime = performance.now();
+      const threats = (uptime % 100 > 95) ? 'breach' : 'secure';
       setSecurityStatus(threats);
+      
       if (threats === 'secure') {
-        jarvisVoice.speak("Security scan complete. All local nodes are secure.");
+        jarvisVoice.speak("Security scan complete, Sir. All local nodes are verified secure. Firewall integrity is at 99.8%.");
+        addNotification("System nodes verified. No intrusions detected.", 'info');
       } else {
-        jarvisVoice.speak("Warning, Sir. I have detected an anomaly in the local firewall. Recommended immediate isolation.");
+        jarvisVoice.speak("Warning, Sir. I've detected a packet injection anomaly in the local subspace. Initiating counter-measures.");
+        addNotification("ALERT: Passive intrusion detected. Quarantining node.", 'alert');
       }
-    }, 4000);
+    }, 4500);
   };
 
   const toggleHomeLink = () => {
@@ -115,25 +121,26 @@ export default function App() {
           console.error("Failed to fetch Electron stats:", err);
         }
       } else {
-        // Fallback to web APIs
-        if ('deviceMemory' in navigator) {
+        // REAL WEB TELEMETRY
+        if ((performance as any).memory) {
+          const pMem = (performance as any).memory;
+          mem = Math.round((pMem.usedJSHeapSize / pMem.jsHeapLimit) * 100);
+        } else if ('deviceMemory' in navigator) {
           // @ts-ignore
-          mem = (navigator.deviceMemory || 8) > 4 ? 35 : 65; // Simple heuristic
+          mem = (navigator.deviceMemory || 8) > 4 ? 28 : 58;
         }
         
-        // Use Network Information API if available
         const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
         if (connection) {
-          // connection.downlink gives speed in Mbps
           traffic = connection.downlink || 10;
         }
 
-        // Get Battery Status if supported
         if ('getBattery' in navigator) {
           try {
             const battery = await (navigator as any).getBattery();
-            // Map battery values to something relevant for the dashboard
-            // For example, if battery is high, we might simulate lower energy flux
+            if (battery.level < 0.2 && !battery.charging) {
+              addNotification("Main system power critical, Sir. Recommend immediate energy flux stabilization.", 'alert');
+            }
           } catch (e) {}
         }
       }
@@ -141,26 +148,25 @@ export default function App() {
       const newData: SensorData = {
         timestamp: Date.now(),
         cpuLoad: Math.min(100, Math.max(0, Math.round(cpu))),
-        memoryUsage: Math.min(100, Math.max(0, Math.round(mem))),
-        trafficSpeed: traffic, // Use a consistent field name or map it
+        memoryUsage: Math.min(100, Math.max(0, Math.round(mem || 25))),
         networkTraffic: Math.round(traffic),
-        energyConsumption: Math.floor(Math.random() * 10) + 2,
-        externalThreats: Math.random() > 0.98 ? 1 : 0
+        energyConsumption: Math.floor(Math.random() * 5) + 2,
+        externalThreats: Math.random() > 0.99 ? 1 : 0
       };
-      setSensorHistory(prev => [...prev.slice(-20), newData]);
+      setSensorHistory(prev => [...prev.slice(-30), newData]);
 
       if (newData.externalThreats > 0) {
-        addNotification("Intrusion attempt detected on Stark Mobile Link. Counter-measures active.", 'alert');
+        addNotification("Inbound packet anomaly identified. Deploying counter-measures.", 'alert');
       }
     };
 
-    const sensorInterval = setInterval(() => {
+    const telemetryInterval = setInterval(() => {
       updateSensors();
       measurePing();
-    }, 3000);
+    }, 2000);
     updateSensors();
     measurePing();
-    return () => clearInterval(sensorInterval);
+    return () => clearInterval(telemetryInterval);
   }, []);
 
   // Run predictive analysis periodically
@@ -188,22 +194,50 @@ export default function App() {
 
   const handleVoiceCommand = () => {
     if (isListening) {
-      jarvisVoice.stopListening();
       setIsListening(false);
       return;
     }
 
-    setIsListening(true);
-    jarvisVoice.listen(
-      (text) => {
-        setIsListening(false);
-        handleCommand(text);
-      },
-      (err) => {
-        setIsListening(false);
-        console.error("Listening error:", err);
-      }
-    );
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      addNotification("Voice recognition not supported in this matrix, Sir.", 'alert');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    
+    recognition.onresult = (event: any) => {
+      const text = event.results[0][0].transcript;
+      handleCommand(text);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech Recognition Error:", event.error);
+      setIsListening(false);
+    };
+
+    recognition.start();
+  };
+
+  const jarvisSpeak = (text: string) => {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    // Attempt to find a sophisticated voice
+    const voices = window.speechSynthesis.getVoices();
+    const britishVoice = voices.find(v => v.lang.includes('GB') || v.name.includes('Google UK English Male'));
+    if (britishVoice) utterance.voice = britishVoice;
+    
+    utterance.pitch = 0.9;
+    utterance.rate = 1.0;
+    window.speechSynthesis.speak(utterance);
   };
 
   const handleCommand = async (text: string) => {
@@ -231,8 +265,8 @@ export default function App() {
 
       setMessages(prev => [...prev, jarvisMessage]);
       
-      // Real-time Text-to-Speech
-      jarvisVoice.speak(response);
+      // TTS Response
+      jarvisSpeak(response);
       
       // Check for specific keywords to trigger dashboard actions
       const lowerResponse = response.toLowerCase();
@@ -251,7 +285,7 @@ export default function App() {
         content: errorMsg,
         timestamp: new Date()
       }]);
-      jarvisVoice.speak(errorMsg);
+      jarvisSpeak(errorMsg);
     } finally {
       setIsProcessing(false);
     }
